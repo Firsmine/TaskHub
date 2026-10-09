@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Project;
 use App\Models\projects;
+use GuzzleHttp\Handler\ProxyEnv;
 use Illuminate\Http\Request;
 
 class ProjectsController extends Controller
@@ -12,7 +14,12 @@ class ProjectsController extends Controller
      */
     public function index()
     {
-        //
+        $projects = $request->user()->project()->withCount('tasks')->latest()->paginate(10);
+        return response()->json([
+            'success' => true,
+            'message' => 'Get all projects success',
+            'data' => $projects
+        ], 201);
     }
 
     /**
@@ -28,15 +35,32 @@ class ProjectsController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'desription' => 'nullable|string',
+            'deadline' => 'nullable|date'
+        ]);
+        $project = $request->user()->project()->create($data);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Project added',
+            'data' => $project
+        ], 201);
     }
 
     /**
      * Display the specified resource.
      */
-    public function show(projects $projects)
+    public function show(Request $request, Project $project)
     {
-        //
+        $this->ensureOwner($request, $project);
+        $project->load(['task.assignee:id,name,email']);
+        return response()->json([
+            'success' => true,
+            'message' => 'Get project data success',
+            'data' => $project
+        ]);
     }
 
     /**
@@ -50,16 +74,44 @@ class ProjectsController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, projects $projects)
+    public function update(Request $request, Project $project)
     {
-        //
+        $this->ensureOwner($request, $project);
+        $data = $request->validate([
+            'name' => 'required|string|max:255',
+            'desription' => 'nullable|string',
+            'deadline' => 'nullable|date'
+        ]);
+        $project->update($data);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Project update success',
+            'data' => $project->fresh(),
+        ]);
     }
+
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(projects $projects)
+    public function destroy(Request $request, Project $project)
     {
-        //
+        $this->ensureOwner($request, $project);
+        $project->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Project delete success',
+        ]);
+    }
+
+    private function ensureOwner(Request $request, Project $project): void
+    {
+        abort_unless(
+            (int) $project->user_id === (int) $request->user()->id,
+            403,
+            'You do not have access to this project'
+        );
     }
 }

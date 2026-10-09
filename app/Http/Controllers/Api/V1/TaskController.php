@@ -10,7 +10,7 @@ class TaskController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
         //
     }
@@ -34,9 +34,9 @@ class TaskController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Task $task)
+    public function show(Request $request, Task $task)
     {
-        //
+
     }
 
     /**
