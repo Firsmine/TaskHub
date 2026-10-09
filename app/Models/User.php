@@ -26,6 +26,13 @@ class User extends Authenticatable
         'password'
     ]
 
+    public function project(){
+        return $this->hasMany(Project::class);
+    }
+    public funtion task(){
+        return $this->hasMany(Task::class, 'assigned_to');
+    }
+
     /**
      * Get the attributes that should be cast.
      *

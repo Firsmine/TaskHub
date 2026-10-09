@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class projects extends Model
+class Project extends Model
 {
     use App\Models\HasFactory;
     protected $fillable = [
@@ -14,4 +14,14 @@ class projects extends Model
         'description',
         'deadline'
     ];
+
+    public function task()
+    {
+        return $this->hasMany(Task::class);
+    }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }
