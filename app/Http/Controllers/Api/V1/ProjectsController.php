@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Controllers\Controller;
 use App\Models\Project;
-use App\Models\projects;
 use GuzzleHttp\Handler\ProxyEnv;
 use Illuminate\Http\Request;
 
@@ -12,7 +12,7 @@ class ProjectsController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
         $projects = $request->user()->project()->withCount('tasks')->latest()->paginate(10);
         return response()->json([
@@ -55,7 +55,7 @@ class ProjectsController extends Controller
     public function show(Request $request, Project $project)
     {
         $this->ensureOwner($request, $project);
-        $project->load(['task.assignee:id,name,email']);
+        $project->load(['tasks.assignee:id,name,email']);
         return response()->json([
             'success' => true,
             'message' => 'Get project data success',

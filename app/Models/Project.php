@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class Project extends Model
 {
-    use App\Models\HasFactory;
+    use HasFactory;
     protected $fillable = [
         'user_id',
         'name',
@@ -15,9 +15,9 @@ class Project extends Model
         'deadline'
     ];
 
-    public function task()
+    public function tasks()
     {
-        return $this->hasMany(Task::class);
+        return $this->hasMany(Task::class, 'project_id');
     }
 
     public function user()

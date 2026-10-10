@@ -1,7 +1,8 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\Api\V1;
 
+use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\Task;
 use Illuminate\Http\Request;
@@ -15,51 +16,51 @@ class TaskController extends Controller
     public function index(Request $request)
     {
         $filters = $request->validate([
-            'status' => ['sometimes', 'required',
-                Rule::in(['todo', 'progress', 'done']);
+            'status' => [
+                'sometimes',
+                'required',
+                Rule::in(['todo', 'progress', 'done']),
             ],
             'priority' => [
-                'sometimes', 'required',
-                Rule::in(['low', 'medium', 'high']);
-            ]
+                'sometimes',
+                'required',
+                Rule::in(['low', 'medium', 'high']),
+            ],
         ]);
-
         $user = $request->user();
-
-        $query = Task::query()->where(function ($query) use ($user){
-            $query->whereHas('project', function ($projectQuery) use ($user){
+        $query = Task::query()->where(function ($query) use ($user) {
+            $query->whereHas('project', function ($projectQuery) use ($user) {
                 $projectQuery->where('user_id', $user->id);
             })->orWhere('assigned_to', $user->id);
         })->with([
-            'project::id,name,user_id',
-            'assignee:id,name,user_id'
-        ]);
-
-        if (isset($filters['status'])){
+                    'project:id,name,user_id',
+                    'assignee:id,name,email'
+                ]);
+        if (isset($filters['status'])) {
             $query->where('status', $filters['status']);
         }
-        if (isset($filters['priority'])){
+        if (isset($filters['priority'])) {
             $query->where('priority', $filters['priority']);
         }
-
         return response()->json([
-            'success'=>true,
-            'message'=>'Get tasks success',
-            'data'=>$query->latest()->paginate(10);
-        ])
+            'success' => true,
+            'message' => 'Get tasks success',
+            'data' => $query->latest()->paginate(10)
+        ]);
     }
 
-    public function projectTasks(Request $request, Project $project) {
+    public function projectTasks(Request $request, Project $project)
+    {
         $this->ensureProjectOwner($request, $project);
 
         $tasks = $project->tasks()
-            ->with('assignee:id,name,email')
+            ->with(['assignee:id,name,email'])
             ->latest()
             ->paginate(10);
 
         return response()->json([
-            'success'=>true,
-            'data'->$tasks
+            'success' => true,
+            'data' => $tasks
         ]);
     }
 
@@ -107,7 +108,7 @@ class TaskController extends Controller
         $task->load('assignee:id,name,email');
 
         return response()->json([
-            'success'=>true,
+            'success' => true,
             'message' => 'Task added success',
             'data' => $task,
         ], 201);
@@ -118,7 +119,23 @@ class TaskController extends Controller
      */
     public function show(Request $request, Task $task)
     {
+        $isOwner = (int) $task->project->user_id === (int) $request->user()->id;
+        $isAssignee = (int) $task->assignee_to === (int) $request->user()->id;
 
+        abort_unless(
+            !$isOwner || !$isAssignee,
+            403,
+            'You do not have access'
+        );
+        $task->load([
+            'project:id,name,user_id',
+            'assignee:id,name,email',
+        ]);
+        return response()->json([
+            'success' => true,
+            'message' => 'Get task success',
+            'data' => $task,
+        ]);
     }
 
     /**
@@ -144,7 +161,7 @@ class TaskController extends Controller
         ]);
 
         return response()->json([
-            'success'=>true,
+            'success' => true,
             'data' => $task,
         ]);
     }
@@ -155,23 +172,32 @@ class TaskController extends Controller
     public function update(Request $request, Task $task)
     {
         $this->ensureTaskOwner($request, $task);
-
         $data = $request->validate([
             'title' => [
-                'sometimes', 'required', 'string', 'max:255',
+                'sometimes',
+                'required',
+                'string',
+                'max:255',
             ],
             'description' => [
-                'sometimes', 'nullable', 'string',
+                'sometimes',
+                'nullable',
+                'string',
             ],
             'assigned_to' => [
-                'sometimes', 'nullable', 'integer', 'exists:users,id',
+                'sometimes',
+                'nullable',
+                'integer',
+                'exists:users,id',
             ],
             'status' => [
-                'sometimes', 'required',
+                'sometimes',
+                'required',
                 Rule::in(['todo', 'progress', 'done']),
             ],
             'priority' => [
-                'sometimes', 'required',
+                'sometimes',
+                'required',
                 Rule::in(['low', 'medium', 'high']),
             ],
         ]);
@@ -186,13 +212,11 @@ class TaskController extends Controller
         if ($assignmentProvided) {
             $task->assigned_to = $assignedTo;
         }
-
         $task->save();
-
         $task->load('assignee:id,name,email');
 
         return response()->json([
-            'success'=>true,
+            'success' => true,
             'message' => 'Task updated',
             'data' => $task,
         ]);
@@ -207,7 +231,7 @@ class TaskController extends Controller
         $task->delete();
 
         return response()->json([
-            'success'=>true,
+            'success' => true,
             'message' => 'Task deleted',
         ]);
     }
@@ -224,8 +248,8 @@ class TaskController extends Controller
             ->paginate(10);
 
         return response()->json([
-            'success'=>true,
-            'data'=>$tasks,
+            'success' => true,
+            'data' => $tasks,
         ]);
     }
 
@@ -240,7 +264,7 @@ class TaskController extends Controller
             === (int) $request->user()->id;
 
         abort_unless(
-            $isOwner || $isAssignee,
+            !$isOwner || !$isAssignee,
             403,
             'You do not have access to edit'
         );
@@ -255,13 +279,14 @@ class TaskController extends Controller
         ]);
 
         return response()->json([
-            'success'=>true,
+            'success' => true,
             'message' => 'Task status updated',
             'data' => $task->fresh()->load('assignee:id,name,email'),
         ]);
     }
 
-    private function ensureProjectOwner(Request $request, Project $project): void {
+    private function ensureProjectOwner(Request $request, Project $project): void
+    {
         abort_unless(
             (int) $project->user_id ===
             (int) $request->user()->id,
@@ -274,7 +299,7 @@ class TaskController extends Controller
         Task $task
     ): void {
         abort_unless(
-            (int) $task->project->user_id ===
+            (int) $task->project->user_id !==
             (int) $request->user()->id,
             403,
             'Only owner can manage this task'
